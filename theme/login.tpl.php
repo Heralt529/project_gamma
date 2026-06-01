@@ -96,7 +96,7 @@
 </head>
 <body>
     <div class="login-container">
-        <h1><i class="fas fa-gift"></i> Вход в личный кабинет</h1>
+        <h1><i class="fas fa-gift"></i></h1>
         
         <?php if (!empty($c['error'])): ?>
             <div class="error-message">
