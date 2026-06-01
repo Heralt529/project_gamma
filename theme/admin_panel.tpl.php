@@ -12,7 +12,7 @@
         body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; padding: 40px 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
         h1 { color: #ff9900; margin-bottom: 10px; }
-        .stats-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; }
+        .stats-card {  background: #ff9900; color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; }
         .stats-grid { display: flex; gap: 30px; flex-wrap: wrap; margin-top: 15px; }
         .stat-item { background: rgba(255,255,255,0.2); padding: 15px 25px; border-radius: 10px; }
         .stat-item h3 { font-size: 28px; }
