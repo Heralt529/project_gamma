@@ -4,14 +4,17 @@
 function admin_get($request) {
     global $db;
     
+    // Проверяем, есть ли параметр edit
+    if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
+        return admin_edit_form($request, $_GET['edit']);
+    }
+    
     // Получаем всех пользователей с их языками
     $users_data = [];
     
-    // 1. Получаем пользователей
     $stmt = $db->query("SELECT id, name, phone, email, birthdate, sex, biography, login, created_at FROM users ORDER BY id DESC");
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // 2. Получаем языки для каждого пользователя
     $lang_stmt = $db->prepare("SELECT language FROM user_languages WHERE user_id = ?");
     
     foreach ($users as $user) {
@@ -21,7 +24,7 @@ function admin_get($request) {
         $users_data[] = $user;
     }
     
-    // 3. Статистика по языкам
+    // Статистика по языкам
     $stat_stmt = $db->query("
         SELECT language, COUNT(*) as count 
         FROM user_languages 
@@ -30,63 +33,30 @@ function admin_get($request) {
     ");
     $language_stats = $stat_stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // 4. Общая статистика
     $total_stmt = $db->query("SELECT COUNT(*) as total FROM users");
     $total_users = $total_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    
+    // Получаем сообщения из кук
+    $message = '';
+    $message_type = '';
+    if (!empty($_COOKIE['admin_message'])) {
+        $message = $_COOKIE['admin_message'];
+        $message_type = $_COOKIE['admin_message_type'] ?? 'info';
+        setcookie('admin_message', '', time() - 3600);
+        setcookie('admin_message_type', '', time() - 3600);
+    }
     
     return theme('admin_panel', [
         'users' => $users_data,
         'language_stats' => $language_stats,
         'total_users' => $total_users,
-        'message' => !empty($_COOKIE['admin_message']) ? $_COOKIE['admin_message'] : '',
-        'message_type' => !empty($_COOKIE['admin_message_type']) ? $_COOKIE['admin_message_type'] : ''
+        'message' => $message,
+        'message_type' => $message_type
     ]);
 }
 
-// Удаление пользователя (DELETE через POST с _method)
-function admin_post($request, $id = null) {
-    global $db;
-    
-    if ($id === null) {
-        setcookie('admin_message', 'ID пользователя не указан', time() + 5);
-        setcookie('admin_message_type', 'error', time() + 5);
-        return redirect('admin');
-    }
-    
-    $id = intval($id);
-    
-    // Проверяем, есть ли _method DELETE
-    $method = isset($_POST['_method']) ? strtoupper($_POST['_method']) : 'POST';
-    
-    if ($method === 'DELETE') {
-        try {
-            $stmt = $db->prepare("DELETE FROM users WHERE id = ?");
-            $stmt->execute([$id]);
-            
-            if ($stmt->rowCount() > 0) {
-                setcookie('admin_message', 'Пользователь удалён', time() + 5);
-                setcookie('admin_message_type', 'success', time() + 5);
-            } else {
-                setcookie('admin_message', 'Пользователь не найден', time() + 5);
-                setcookie('admin_message_type', 'error', time() + 5);
-            }
-        } catch (PDOException $e) {
-            setcookie('admin_message', 'Ошибка удаления: ' . $e->getMessage(), time() + 5);
-            setcookie('admin_message_type', 'error', time() + 5);
-        }
-        return redirect('admin');
-    }
-    
-    // Если это редактирование — перенаправляем на GET с параметром edit
-    if (isset($_POST['edit_user'])) {
-        return redirect('admin/' . $id . '/edit');
-    }
-    
-    return redirect('admin');
-}
-
-// Редактирование пользователя
-function admin_edit_get($request, $id) {
+// Форма редактирования
+function admin_edit_form($request, $id) {
     global $db;
     
     $id = intval($id);
@@ -101,13 +71,11 @@ function admin_edit_get($request, $id) {
         return redirect('admin');
     }
     
-    // Получаем языки пользователя
     $lang_stmt = $db->prepare("SELECT language FROM user_languages WHERE user_id = ?");
     $lang_stmt->execute([$id]);
     $user_languages = $lang_stmt->fetchAll(PDO::FETCH_COLUMN);
     $user['languages'] = $user_languages;
     
-    // Список всех языков для формы
     $all_languages = ['Pascal', 'C', 'C++', 'JavaScript', 'PHP', 'Python', 'Java', 'Haskel', 'Clojure', 'Prolog', 'Scala', 'Go'];
     
     return theme('admin_edit', [
@@ -116,44 +84,80 @@ function admin_edit_get($request, $id) {
     ]);
 }
 
-// Обновление пользователя (PUT)
-function admin_put($request, $id) {
+// Удаление пользователя
+function admin_post($request, $id = null) {
     global $db;
+    
+    if ($id === null) {
+        setcookie('admin_message', 'ID пользователя не указан', time() + 5);
+        setcookie('admin_message_type', 'error', time() + 5);
+        return redirect('admin');
+    }
     
     $id = intval($id);
     
-    // Получаем данные из php://input для PUT
-    parse_str(file_get_contents('php://input'), $put_data);
-    
-    // Или из POST если пришло как multipart
-    if (empty($put_data)) {
-        $put_data = $_POST;
+    try {
+        $stmt = $db->prepare("DELETE FROM users WHERE id = ?");
+        $stmt->execute([$id]);
+        
+        if ($stmt->rowCount() > 0) {
+            setcookie('admin_message', 'Пользователь удалён', time() + 5);
+            setcookie('admin_message_type', 'success', time() + 5);
+        } else {
+            setcookie('admin_message', 'Пользователь не найден', time() + 5);
+            setcookie('admin_message_type', 'error', time() + 5);
+        }
+    } catch (PDOException $e) {
+        setcookie('admin_message', 'Ошибка удаления: ' . $e->getMessage(), time() + 5);
+        setcookie('admin_message_type', 'error', time() + 5);
     }
     
+    return redirect('admin');
+}
+
+// Обновление пользователя (через POST с параметром update)
+function admin_put($request, $id = null) {
+    // Этот метод не используется, используем admin_post_update
+    return redirect('admin');
+}
+
+// Отдельный обработчик для обновления
+function admin_post_update($request) {
+    global $db;
+    
+    $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+    
+    if (!$id) {
+        setcookie('admin_message', 'ID пользователя не указан', time() + 5);
+        setcookie('admin_message_type', 'error', time() + 5);
+        return redirect('admin');
+    }
+    
+    $data = $_POST;
+    
     // Валидация
-    $errors = validate_admin_form($put_data);
+    $errors = validate_admin_form($data);
     if (!empty($errors)) {
         $_SESSION['admin_edit_errors'] = $errors;
-        $_SESSION['admin_edit_data'] = $put_data;
-        return redirect('admin/' . $id . '/edit');
+        $_SESSION['admin_edit_data'] = $data;
+        return redirect('admin?edit=' . $id);
     }
     
     try {
         $db->beginTransaction();
         
-        // Обновляем пользователя
         $stmt = $db->prepare("
             UPDATE users 
             SET name = ?, phone = ?, email = ?, birthdate = ?, sex = ?, biography = ? 
             WHERE id = ?
         ");
         $stmt->execute([
-            $put_data['name'],
-            $put_data['phone'] ?? null,
-            $put_data['email'] ?? null,
-            $put_data['birthdate'] ?? null,
-            $put_data['sex'],
-            $put_data['biography'] ?? null,
+            $data['name'],
+            $data['phone'] ?? null,
+            $data['email'] ?? null,
+            $data['birthdate'] ?? null,
+            $data['sex'],
+            $data['biography'] ?? null,
             $id
         ]);
         
@@ -161,9 +165,9 @@ function admin_put($request, $id) {
         $del_stmt = $db->prepare("DELETE FROM user_languages WHERE user_id = ?");
         $del_stmt->execute([$id]);
         
-        if (!empty($put_data['languages']) && is_array($put_data['languages'])) {
+        if (!empty($data['languages']) && is_array($data['languages'])) {
             $lang_stmt = $db->prepare("INSERT INTO user_languages (user_id, language) VALUES (?, ?)");
-            foreach ($put_data['languages'] as $lang) {
+            foreach ($data['languages'] as $lang) {
                 $lang_stmt->execute([$id, $lang]);
             }
         }
@@ -182,7 +186,6 @@ function admin_put($request, $id) {
     return redirect('admin');
 }
 
-// Вспомогательная функция валидации для админки
 function validate_admin_form($data) {
     $errors = [];
     
