@@ -23,21 +23,21 @@ function init($request = array(), $urlconf = array()) {
   // Массив текущего вывода модулей.
   $c = array();
 
-  // Пробергаем по всем определениям ресурсов и для подходящих URL
+  // Пробегаем по всем определениям ресурсов и для подходящих URL
   // вызываем процедуры их модулей, соответствующие методу HTTP-запроса.
   $q = isset($request['url']) ? $request['url'] : '';
   $method = isset($request['method']) ? $request['method'] : 'get';
   foreach ($urlconf as $url => $r) {
     $matches = array();
     if ($url == '' || $url[0] != '/') {
-      // Если не регулярное выражение, то поверяем на равенство.
+      // Если не регулярное выражение, то проверяем на равенство.
       if ($url != $q) {
         continue;
       }
     }
     else {
       // Проверяем соответствие URL запроса регулярному выражению.
-      if (!preg_match_all($url, $q, $matches)) {
+      if (!preg_match_all($url, $q, $matches, PREG_SET_ORDER)) {
         continue;
       }
     }
@@ -68,20 +68,28 @@ function init($request = array(), $urlconf = array()) {
       continue;
     }
 
-    // Собираем параметры в массив.
-    $params = array('request' => $request);
-    array_shift($matches);
-    foreach ($matches as $key => $match) {
-      $params[$key] = $match[0];
+    // Собираем параметры в массив ТОЛЬКО с числовыми индексами.
+    $params = array();
+    // Первый параметр всегда $request.
+    $params[] = $request;
+    
+    // Из $matches (результат PREG_SET_ORDER) извлекаем захваченные группы.
+    // $matches[0] — это массив совпадений для первой найденной комбинации.
+    if (!empty($matches[0])) {
+        // Убираем полное совпадение (индекс 0), остальные — это подмаски (capturing groups).
+        array_shift($matches[0]);
+        // Добавляем каждое значение как отдельный позиционный аргумент.
+        foreach ($matches[0] as $match_value) {
+            $params[] = $match_value;
+        }
     }
 
-    // Вызываем обработчик запроса в модуле передавая параметры из $params.
+    // Вызываем обработчик запроса в модуле, передавая параметры из $params.
     if ($result = call_user_func_array($func, $params)) {
       if (is_array($result)) {
         $response = array_merge($response, $result);
         // Первый модуль отработал запрос и выставил редирект или not found или forbidden.
         // Другие модули уже не отрабатывают запрос.
-        // Т.е. важно в каком порядке стоят модули в массиве $res.
         if (!empty($response['headers'])) {
           return $response;
         }
@@ -116,15 +124,12 @@ function conf($key) {
 // Формирует сокращенные URL для ссылок или для текущей страницы.
 function url($addr = '', $params = array()) {
   global $conf;
-  // Если вызвали без параметров, до делаем ссылку на текущую страницу.
   if ($addr == '' && isset($_GET['q'])) {
     $addr = strip_tags($_GET['q']);
   }
-  // В зависимоти от настроек проекта генерируем чистые ссылки или ссылки с параметром.
   $clean = conf('clean_urls');
   $r = $clean ? '/' : '?q=';
   $r .= strip_tags($addr);
-  // Добавляем параметры.
   if (count($params) > 0) {
     $r .= $clean ? '?' : '&';
     $r .= implode('&', $params);
@@ -161,22 +166,13 @@ function not_found() {
 
 // Функция загрузки шаблона с использованием буферизации вывода.
 function theme($t, $c = array()) {
-  // Путь к файлу шаблона.
   $template = conf('theme') . '/' . str_replace('/', '_', $t) . '.tpl.php';
-
-  // Если нет файла шаблона, то просто печатаем данные слитно.
   if (!file_exists($template)) {
     return implode('', $c);
   }
-
-  // Начинаем буферизацию вывода.
   ob_start();
-  // Парсим и включаем файл шаблона, весь вывод попадает в буфер.
   include $template;
-  // Достаем содержимое буфера.
   $contents = ob_get_contents();
-  // Оканчиваем буферизацию очищая буфер.
   ob_end_clean();
-  // Возвращаем контент.
   return $contents;
 }
