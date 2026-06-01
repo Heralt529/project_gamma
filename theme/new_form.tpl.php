@@ -323,7 +323,7 @@
                     // Меняем ссылку входа на выход
                     const loginLink = document.getElementById('loginLink');
                     if (loginLink) {
-                        loginLink.textContent = 'Личный кабинет';
+                        loginLink.textContent = '';
                         loginLink.href = '?q=profile';
                     }
                     
