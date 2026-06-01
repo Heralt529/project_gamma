@@ -41,6 +41,7 @@ $urlconf = array(
   '/^logout$/' => array('module' => 'logout'),
   '/^admin$/' => array('module' => 'admin', 'auth' => 'auth_basic'),
   '/^admin\/(\d+)$/' => array('module' => 'admin', 'auth' => 'auth_basic'),
+  '/^admin\/update$/' => array('module' => 'admin', 'auth' => 'auth_basic'),
 
 /*  '/^order\/(\d+)$/' => array('module' => 'order', 'auth' => 'auth_db_basic'),
   '/^order\/(\d+)\/add$/' => array('module' => 'order_add', 'auth' => 'auth_db_basic'),
