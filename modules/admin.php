@@ -84,10 +84,16 @@ function admin_edit_form($request, $id) {
     ]);
 }
 
-// Удаление пользователя
+// Обработчик POST (и для удаления, и для обновления через _method)
 function admin_post($request, $id = null) {
     global $db;
     
+    // Если передан _method=PUT — вызываем обновление
+    if (isset($_POST['_method']) && strtoupper($_POST['_method']) === 'PUT') {
+        return admin_update($request, $id);
+    }
+    
+    // Иначе — удаление
     if ($id === null) {
         setcookie('admin_message', 'ID пользователя не указан', time() + 5);
         setcookie('admin_message_type', 'error', time() + 5);
@@ -115,18 +121,11 @@ function admin_post($request, $id = null) {
     return redirect('admin');
 }
 
-// Обновление пользователя (через POST с параметром update)
-function admin_put($request, $id = null) {
-    // Этот метод не используется, используем admin_post_update
-    return redirect('admin');
-}
-
-// Отдельный обработчик для обновления
-function admin_post_update($request) {
+// Функция обновления пользователя
+function admin_update($request, $id) {
     global $db;
     
-    $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
-    
+    $id = intval($id);
     if (!$id) {
         setcookie('admin_message', 'ID пользователя не указан', time() + 5);
         setcookie('admin_message_type', 'error', time() + 5);
@@ -186,6 +185,7 @@ function admin_post_update($request) {
     return redirect('admin');
 }
 
+// Валидация
 function validate_admin_form($data) {
     $errors = [];
     
