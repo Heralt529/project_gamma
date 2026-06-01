@@ -56,7 +56,10 @@
             </div>
         <?php endif; ?>
         
-        <form method="POST" action="?q=admin/update">
+        <!-- ОСНОВНОЕ ИСПРАВЛЕНИЕ: action указывает на URL с ID пользователя -->
+        <form method="POST" action="?q=admin/<?php echo $c['user']['id']; ?>">
+            <!-- Скрытое поле _method для имитации PUT -->
+            <input type="hidden" name="_method" value="PUT">
             <input type="hidden" name="id" value="<?php echo $c['user']['id']; ?>">
             
             <div class="form-group">
@@ -142,7 +145,6 @@
     
     <?php if (!empty($errors)): ?>
     <script>
-        // Прокручиваем к первой ошибке
         document.addEventListener('DOMContentLoaded', function() {
             const firstError = document.querySelector('.field-error');
             if (firstError) {
